@@ -11,6 +11,9 @@ import MySQLdb
 np.set_printoptions(threshold=np.inf)
 import difflib
 import time
+import assumption_extraction
+import prepare_and_perform_wolfram_query
+import supervise_wolfram_extraction
 
 #--------------------------------------------------------------------------------------------------------------------------------
 total_tests_of_labtests_online = [u'5-HIAA', u'17-Hydroxyprogesterone', u'A/G Ratio', u'HbA1c', u'Absolute neutrophils', u'ACE', u'Acetaminophen', u'Acetylcholinesterase', u'AChR Antibody', u'ACR', u'ACT', u'ACTH', u'Adenosine Deaminase', u'ADH', u'AFB Testing', u'AFP Maternal', u'AFP Tumor Markers', u'Albumin', u'Aldolase', u'Aldosterone', u'ALK Mutation (Gene Rearrangement)', u'Allergy Blood Testing', u'ALP', u'Alpha-1 Antitrypsin', u'ALT', u'AMA', u'Amikacin',
@@ -54,22 +57,20 @@ total_tests_available = ['AMYLASE ', 'CHLORIDE', 'HOMOCYSTEINE', 'IRON TOTAL IRO
 
 
 class calculate_percentile_using_database:
-    def __init__(self,total_tests_available):
-        self.total_tests_available = total_tests_available
+    def __init__(self,name_to_use_for_calculation, input_value, age, gender):
+        self.name_to_use_for_calculation = name_to_use_for_calculation
+        self.input_value = input_value
+        self.age = age
+        self.gender = gender
 
-    def find_nearest_match_of input_testname(self):
-        
-
-        return highest_similarity,name_to_use_for_calculation,input_value,input_test_name,gender,age
-
-    def calculate_percentile(self,frame,input_value):
+    def calculate_percentile(self,frame):
         length = len(frame)
         if length >= 0:
             count = 0
             for value in frame['value'].values:
                 try:
                     if type(value) is float or type(value) is str or type(value) is int:
-                        if float(value) < float(input_value):
+                        if float(value) < float(self.input_value):
                             count = count + 1
                     else:
                         length = length - 1
@@ -84,67 +85,47 @@ class calculate_percentile_using_database:
         data_dictionary ={'percentage of people below your value':percentage_below_you,'percentage of people above your value':percentage_above_you}
         return data_dictionary
 
-    def percentile_on_basis_of_age(self,all_values_of_given_test,age,input_value):
+    def percentile_on_basis_of_age(self,all_values_of_given_test):
         all_values_of_given_test_dropna = all_values_of_given_test.dropna()
         all_values_of_given_test_dropna = all_values_of_given_test_dropna[all_values_of_given_test_dropna.age != '']
         all_values_of_given_test_dropna['age'] = all_values_of_given_test_dropna['age'].apply(lambda x: int(x))
         age_band_list = ['20-29','30-39','40-49','50-59','60-69','70-79','80-89','90-99']
         for age_band in age_band_list:
-            if age[0] == age_band[0]:
+            if self.age[0] == age_band[0]:
                 age_band_frame = all_values_of_given_test_dropna[np.logical_and(all_values_of_given_test_dropna.age >= int(age_band.split('-')[0]),all_values_of_given_test_dropna.age <= int(age_band.split('-')[1]))]
                 break
-        data_dictionary = self.calculate_percentile(age_band_frame,input_value)
+        data_dictionary = self.calculate_percentile(age_band_frame)
         return data_dictionary
 
 
-    def percentile_on_basis_of_gender(self,all_values_of_given_test,gender,input_value):
-        if gender == 'M':
+    def percentile_on_basis_of_gender(self,all_values_of_given_test):
+        if self.gender == 'M':
             values_for_male_gender = all_values_of_given_test[all_values_of_given_test.gender == 'M']
-            data_dictionary = self.calculate_percentile(values_for_male_gender,input_value)
-        if gender == 'F':
+            data_dictionary = self.calculate_percentile(values_for_male_gender)
+        if self.gender == 'F':
             values_for_female_gender = all_values_of_given_test[all_values_of_given_test.gender == 'F']
-            data_dictionary = self.calculate_percentile(values_for_female_gender,input_value)
+            data_dictionary = self.calculate_percentile(values_for_female_gender)
         return data_dictionary
     
-    def normal_percentile(self,all_values_of_given_test,input_value):
-        data_dictionary = self.calculate_percentile(all_values_of_given_test,input_value)
+    def normal_percentile(self,all_values_of_given_test):
+        data_dictionary = self.calculate_percentile(all_values_of_given_test)
         return data_dictionary
 
-    def connect_to_database_to_form_result_dictionary (self,name_to_use_for_calculation,input_value,gender,age):
-        
+    def connect_to_database_to_form_result_dictionary (self):
+        data_dictionary = {}
         db = MySQLdb.connect(host = 'localhost',
             user = 'root',
             password = 'jubi',
             db = 'parsed')
 
-        query = 'select report.age,report.gender,test.value,test.name from report join profile on report.report_id=profile.report_report_id join test on profile.profile_id=test.profile_profile_id where test.name like '+ '\"%'+name_to_use_for_calculation+'%\"'+''
+        query = 'select report.age,report.gender,test.value,test.name from report join profile on report.report_id=profile.report_report_id join test on profile.profile_id=test.profile_profile_id where test.name like '+ '\"%'+self.name_to_use_for_calculation+'%\"'+''
         
         all_values_of_given_test = pd.read_sql(query, db)
-        data_dictionary.update({'overall':self.normal_percentile(all_values_of_given_test,input_value)})
-        data_dictionary.update({'within your gender':self.percentile_on_basis_of_gender(all_values_of_given_test,gender,input_value)})
-        data_dictionary.update({'within you age group':self.percentile_on_basis_of_age(all_values_of_given_test,age,input_value)})
+        data_dictionary.update({'overall':self.normal_percentile(all_values_of_given_test)})
+        data_dictionary.update({'within your gender':self.percentile_on_basis_of_gender(all_values_of_given_test)})
+        data_dictionary.update({'within you age group':self.percentile_on_basis_of_age(all_values_of_given_test)})
         return data_dictionary
 
-    def validate_test_name_and_perform_operation(self,count,flag_for_wolfram):
-        count = count + 1 
-        highest_similarity,name_to_use_for_calculation,input_value,input_test_name,gender,age= self.find_nearest_match_of input_testname()
-        validate_test_name = raw_input("Is "+name_to_use_for_calculation+" the test you are looking for?Enter Yes or No: ")
-        if 'yes' in  validate_test_name.lower():
-            data_dictionary = self.connect_to_database_to_form_result_dictionary (name_to_use_for_calculation,input_value,gender,age)
-            return data_dictionary,input_value,input_test_name
-        
-        elif 'no' in validate_test_name.lower():
-            if highest_similarity > .6 and count < 3:
-                print('Check the spelling and try again')
-                self.validate_test_name_and_perform_operation(count,flag_for_wolfram)
-            else:
-                print('trying to find your answer on internet')
-                flag_for_wolfram = True
-                return flag_for_wolfram,input_value,input_test_name
-        else:
-            print("Sorry,didn't get that. Please Try Again")
-            self.validate_test_name_and_perform_operation(count,flag_for_wolfram)
-        return True,input_value,input_test_name
 
 
 
@@ -153,127 +134,154 @@ class calculate_percentile_using_database:
 
 
 class get_percentile_from_wolfram:
-	def __init__(self,input_test_name,count_of_re_querying,server,appid,input_string):
-		self.input_test_name = input_test_name
-		self.count_of_re_querying = count_of_re_querying
-		self.server = server
-		self.appid = appid
-		self.input_string = input_string
+    def __init__(self,input_test_name,count_of_re_querying,server,appid,input_string):
+        self.input_test_name = input_test_name
+        self.count_of_re_querying = count_of_re_querying
+        self.server = server
+        self.appid = appid
+        self.input_string = input_string
 
-	def check_validity_of_test_name_for_wolfram_query_try(self):
-	    highest_similarity = 0
-	    for test_name in total_tests_of_labtests_online:
-	        similarity = difflib.SequenceMatcher(None,str(test_name.encode('utf-8')).lower(),self.input_test_name.lower()).ratio()
-	        if similarity > highest_similarity:
-	            highest_similarity = similarity
-	            name_to_use_for_calculation = test_name
-	    re_query_flag = True
-	    if highest_similarity > .7:
-	        validate_test_name = raw_input("Is "+name_to_use_for_calculation+" the test you are looking for?Enter Yes or No: ")
-	        
-	        if validate_test_name.lower() == 'yes':
-	            re_query_flag = True
-	            return re_query_flag
-	        else:
-	            return re_query_flag
-	    else:
-	        return re_query_flag
+    def think_its_name(self,server,appid,input_string,type_of_calculator, medical_test_wolram_query_flag):
+        get_assumptions = assumption_extraction.get_assumptions_and_formula_variables_from_basic_query(server,appid,input_string,type_of_calculator)
+        assumption_list = get_assumptions.perform_basic_query_and_extract_assumptions()
+        prepare_and_perform_query = prepare_and_perform_wolfram_query.prepare_and_perform_query_with_assumptions(input_string,assumption_list,appid,server,medical_test_wolram_query_flag,type_of_calculator)
+        json_result = prepare_and_perform_query.perform_query()
+        return json_result
+    
+    def check_validity_of_test_name_for_wolfram_query_try(self):
+        highest_similarity = 0
+        for test_name in total_tests_of_labtests_online:
+            similarity = difflib.SequenceMatcher(None,str(test_name.encode('utf-8')).lower(),self.input_test_name.lower()).ratio()
+            if similarity > highest_similarity:
+                highest_similarity = similarity
+                name_to_use_for_calculation = test_name
+        re_query_flag = True
+        if highest_similarity > .7:
+            validate_test_name = raw_input("Is "+name_to_use_for_calculation+" the test you are looking for?Enter Yes or No: ")
+            
+            if validate_test_name.lower() == 'yes':
+                re_query_flag = True
+                return re_query_flag
+            else:
+                return re_query_flag
+        else:
+            return re_query_flag
 
 
-	def wolfram_query_for_medical_test(self): 
-	    count_of_re_querying = count_of_re_querying + 1   
-	    
-	    medical_test_wolram_query_flag = True
-	    type_of_calculator = 0
-	    json_result = think_its_name(self.server,self.appid,self.input_string,type_of_calculator, medical_test_wolram_query_flag)
+    def wolfram_query_for_medical_test(self,count_of_re_querying): 
+        count_of_re_querying = count_of_re_querying + 1   
+        ype_of_calculator = 0
+        medical_test_wolram_query_flag = True
+        type_of_calculator = 0
+        json_result = self.think_its_name(self.server,self.appid,self.input_string,type_of_calculator, medical_test_wolram_query_flag)
 
-	    supervise_data_extraction= supervise_extraction_of_data(json_result,medical_test_wolram_query_flag,type_of_calculator)
-	    reference_distribution_table_dict = supervise_data_extraction.retrieving_all_pods_from_data()
-	    
-	    re_query_flag = True
-	    if type(reference_distribution_table_dict) is bool and count_of_re_querying < 5:
-	        if count_of_re_querying == 1:
-	            re_query_flag = self.check_validity_of_test_name_for_wolfram_query_try()
+        supervise_data_extraction= supervise_wolfram_extraction.supervise_extraction_of_data(json_result,medical_test_wolram_query_flag,type_of_calculator)
+        reference_distribution_table_dict = supervise_data_extraction.retrieving_all_pods_from_data()
+        
+        re_query_flag = True
+        if type(reference_distribution_table_dict) is bool and count_of_re_querying < 5:
+            if count_of_re_querying == 1:
+                re_query_flag = self.check_validity_of_test_name_for_wolfram_query_try()
 
-	        if re_query_flag is False:
-	            print('Sorry, Name Not Found')
-	        else: 
-	            self.wolfram_query_for_medical_test()
+            if re_query_flag is False:
+                print('Sorry, Name Not Found')
+            else: 
+                self.wolfram_query_for_medical_test()
+
+
+
+
+
+
 
 
 def get_user_input_for_test_name():
-	input_test_name = raw_input('Enter test name: ')
-	highest_similarity = 0
-    for test_name in self.total_tests_available:
+    input_test_name = raw_input('Enter test name: ')
+    highest_similarity = 0
+    for test_name in total_tests_available:
         similarity = difflib.SequenceMatcher(None,test_name.lower(),input_test_name.lower()).ratio()
         if similarity > highest_similarity:
             highest_similarity = similarity
             name_to_use_for_calculation = test_name
-
+    return name_to_use_for_calculation,input_test_name        
 
 
 def get_other_details_of_user():
-	value_flag = False
-	gender_flag = False
-	age_flag = False
-	input_value = raw_input('Enter your value: ')
-		if re.match(r'\d+\.\d*',input_value):
-			input_value = re.findall(r'(\d+\.\d*)',input_value)[0]
-			value_flag = True
-		gender_identifier = raw_input('Enter 1 if male 2 if female: ')
-		age = raw_input('Enter your age: ')
-		if re.match(r'\d{1,2}',age):
-			age = re.findall(r'(\d{1,2})',age)
-			age_flag = True
-	    if str(gender_identifier) == 1:
-	    	gender_flag = True
-	    	gender = 'M'
-	    else:
-	    	gender_flag = True
-	        gender = 'F'
-	    if value_flag is True and gender_flag is True and age_flag is True:
-        	return input_value, age, gender
-        else:
-        	get_other_details_of_user()
+    value_flag = False
+    gender_flag = False
+    age_flag = False
+    input_value = raw_input('Enter your value: ')
+    if re.match(r'(\d+\.?\d*)',input_value):
+        input_value = re.findall(r'(\d+\.?\d*)',input_value)[0]
+        print(input_value)
+        value_flag = True
+    elif re.match(r'(\.\d+)',input_value):
+        input_value = re.findall(r'(\.\d+)',input_value)[0]
+        print(input_value)
+        value_flag = True
+    gender_identifier = raw_input('Enter 1 if male 2 if female: ')
+    age = raw_input('Enter your age: ')
+    if re.match(r'\d{1,2}',age):
+        age = re.findall(r'(\d{1,2})',age)[0]
+        print(age)
+        age_flag = True
+    if str(gender_identifier) == 1:
+        gender_flag = True
+        gender = 'M'
+    else:
+        gender_flag = True
+        gender = 'F'
+    if value_flag is True and gender_flag is True and age_flag is True:
+        return input_value, age, gender
+    else:
+        print('Something went wrong.Please check your details and try again')
+        get_other_details_of_user()
 
 
 
 
-def validate_test_name():
-	name_to_use_for_calculation = get_user_input_for_test_name()
+def validate_test_name(count_of_spelling_mistake_try):
+    count_of_spelling_mistake_try = count_of_spelling_mistake_try + 1
+    name_to_use_for_calculation,input_test_name = get_user_input_for_test_name()
     validate_test_name = raw_input("Is "+name_to_use_for_calculation+" the test you are looking for?Enter Yes or No: ")
-    if 'yes' in validate_test_name.lower(): 	
-		input_value, age, gender = get_other_details_of_user()
-		return name_to_use_for_calculation, input_value, age, gender
+    if 'yes' in validate_test_name.lower():     
+        input_value, age, gender = get_other_details_of_user()
+        return name_to_use_for_calculation,input_test_name, input_value, age, gender
 
-	elif 'no' in validate_test_name.lower():
-		print('please check spelling and try again')
-		validate_test_name()
-	else:
-		print("sorry didn't get that.Please try again")
-		validate_test_name()
+    elif 'no' in validate_test_name.lower():
+        if count_of_spelling_mistake_try < 3:
+            print('please check spelling and try again')
+            validate_test_name()
+        else:
+            return 
+    else:
+        if count_of_spelling_mistake_try < 3:
+            print("sorry didn't get that.Please try again")
+            validate_test_name()
+        else:
+            return
 
 
 
 
 def for_medical_test_operations():
-	name_to_use_for_calculation, input_value, age, gender = validate_test_name()
-    calculate_percentile_for_test = calculate_percentile_using_database(total_tests_available)
+    percentile_information = {}
     count_of_spelling_mistake_try = 0
-    flag_for_calling_wolfram = False
-    result_of_percentile_class,input_value,input_test_name= calculate_percentile_for_test.validate_test_name_and_perform_operation(count_of_spelling_mistake_try,flag_for_calling_wolfram)
+    name_to_use_for_calculation,input_test_name,input_value, age, gender = validate_test_name(count_of_spelling_mistake_try)
+    calculate_percentile_for_test = calculate_percentile_using_database(name_to_use_for_calculation, input_value, age, gender)
 
+    percentile_information = calculate_percentile_for_test.connect_to_database_to_form_result_dictionary()
+    
 
     server = 'http://api.wolframalpha.com/v2/query.jsp'
     appid = 'EEKVX9-HGPX4GPUWY'
     input_string = ""+str(input_test_name)+" "+str(input_value)
+    if len(percentile_information) != 0 and is not None:
+        print(percentile_information)
+    else: 
+        count_of_re_querying = 0
+        print('looking up')
+        get_wolfram_percentile = get_percentile_from_wolfram(input_test_name,count_of_re_querying,server,appid,input_string)
+        get_wolfram_percentile.wolfram_query_for_medical_test(count_of_re_querying)
 
-    if type(result_of_percentile_class) is dict:
-        percentile_inforamtion = result_of_percentile_class
-        print(percentile_inforamtion)
-    if type(result_of_percentile_class) is bool:
-        flag_for_calling_wolfram = result_of_percentile_class 
-        if flag_for_calling_wolfram is True:
-            count_of_re_querying = 0
-            type_of_calculator = 0
-            wolfram_query_for_medical_test(input_test_name,count_of_re_querying,server,appid,input_string)
+for_medical_test_operations()
