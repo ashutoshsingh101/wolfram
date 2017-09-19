@@ -4,12 +4,12 @@ import wap
 
 server = 'http://api.wolframalpha.com/v2/query.jsp'
 appid = 'EEKVX9-HGPX4GPUWY'
-input = 'running'
+input = 'am i too drunk to drive'
 
 waeo = wap.WolframAlphaEngine(appid, server)
 
 queryStr = waeo.CreateQuery(input)
-queryStr = queryStr+'&assumption=*FS-_**Running.t--&assumption=*FVarOpt-_**Running.v-.*Running.age-.*Running.H--&assumption=*FVarOpt-_**Running.incline-.*Running.v-.*Running.age-.*Running.H-.*Running.HRResting--'
+queryStr = queryStr+''
 #&assumption=*FVarOpt-_**Running.HRResting-.*Running.p--&assumption=*FVarOpt-_**Running.age-.*Running.H-.*Running.p--
 wap.WolframAlphaQuery(queryStr, appid)
 result = waeo.PerformQuery(queryStr)
@@ -25,7 +25,7 @@ results = wap.WolframAlphaQueryResult(result)
 
 j = results.JsonResult()
 
-#print(j)
+print(j)
 for pod in results.Pods():
 	waPod = wap.Pod(pod)
 	title = "Pod.title: " + waPod.Title()[0]

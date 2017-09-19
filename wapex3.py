@@ -13,7 +13,7 @@ import difflib
 import time
 
 #--------------------------------------------------------------------------------------------------------------------------------
-total_tests_of_labtests_online = [u'5-HIAA', u'17-Hydroxyprogesterone', u'A/G Ratio', u'A1c', u'Absolute neutrophils', u'ACE', u'Acetaminophen', u'Acetylcholinesterase', u'AChR Antibody', u'ACR', u'ACT', u'ACTH', u'Adenosine Deaminase', u'ADH', u'AFB Testing', u'AFP Maternal', u'AFP Tumor Markers', u'Albumin', u'Aldolase', u'Aldosterone', u'ALK Mutation (Gene Rearrangement)', u'Allergy Blood Testing', u'ALP', u'Alpha-1 Antitrypsin', u'ALT', u'AMA', u'Amikacin',
+total_tests_of_labtests_online = [u'5-HIAA', u'17-Hydroxyprogesterone', u'A/G Ratio', u'HbA1c', u'Absolute neutrophils', u'ACE', u'Acetaminophen', u'Acetylcholinesterase', u'AChR Antibody', u'ACR', u'ACT', u'ACTH', u'Adenosine Deaminase', u'ADH', u'AFB Testing', u'AFP Maternal', u'AFP Tumor Markers', u'Albumin', u'Aldolase', u'Aldosterone', u'ALK Mutation (Gene Rearrangement)', u'Allergy Blood Testing', u'ALP', u'Alpha-1 Antitrypsin', u'ALT', u'AMA', u'Amikacin',
 u'Aminoglycoside Antibiotics', u'Ammonia', u'Amniocentesis', u'Amylase', u'ANA', u'ANCA', u'Androstenedione', u'Anion Gap', u'Anti-CCP', u'Anti-DNase B', u'Anti-dsDNA', u'Anti-LKM-1', u'Anti-Mullerian Hormone', u'Antibody ID, RBC', u'Anticentromere Antibody', 
 u'Antiphospholipids', u'Antithrombin', u'APC Resistance', u'Apo A-I', u'Apo B', u'APOE Genotyping, Alzheimer Disease',
 u'APOE Genotyping, CVD', u'aPTT', u'Arbovirus Testing', u'Arterial Blood Gases', u'ASCA', u'ASO', u'AST', u'Autoantibodies', u'B Vitamins', u'B-cell Ig Gene Rearrangement', u'BCR-ABL1', u'Beta-2 Glycoprotein 1 Antibodies', u'Beta-2 Microglobulin Kidney Disease', u'Beta-2 Microglobulin Tumor Marker', u'Bicarbonate', u'Bilirubin', u'Blood Culture', u'Blood Donation', u'Blood Gases', u'Blood Ketones', u'Blood Smear',
@@ -100,6 +100,8 @@ class get_assumptions_and_formula_variables_from_basic_query():
         query = self.create_basic_query()
         if self.type_of_calculator == 3:
             result = self.create_and_perform_wolfram_query.PerformQuery(query+'&assumption=*FS-_**Running.t--&assumption=*FVarOpt-_**Running.v-.*Running.age-.*Running.H--&assumption=*FVarOpt-_**Running.incline-.*Running.v-.*Running.age-.*Running.H-.*Running.HRResting--')
+        elif self.type_of_calculator == 4:
+             result = self.create_and_perform_wolfram_query.PerformQuery(query+'&assumption=*FVarOpt-_**BodyMassIndex.S--')
         else:
             result = self.create_and_perform_wolfram_query.PerformQuery(query)
         
@@ -148,6 +150,42 @@ class prepare_and_perform_query_with_assumptions:
                     variable_list_objective.append(value_type_dict)
         return variable_list_subjective,variable_list_objective
 
+    def grab_value_from_user_input_and_add_unit(self,user_input,unit):
+        grabbed_value_list = re.findall(r'(\d+\.?\d*)',user_input)
+        if len(grabbed_value_list) > 0:
+            user_input = str(grabbed_value_list[0])+''+str(unit)
+        return user_input
+
+    def add_subjective_variables_for_blood_alcohol_content_calc(self,query_str,variable_list_subjective):
+        names_of_variables_needed = ['number of drinks','time','body weight']
+        for variable_number in range(len(variable_list_subjective)):
+            user_input = raw_input('enter your '+str(names_of_variables_needed[variable_number])+' : ')
+            if re.search(r'\d+\.?\d*',user_input):
+                if names_of_variables_needed[variable_number] == 'time':
+                   user_input = self.grab_value_from_user_input_and_add_unit(user_input,'min')
+                elif names_of_variables_needed[variable_number] == 'body weight':
+                   user_input = self.grab_value_from_user_input_and_add_unit(user_input,'kg')
+                else:
+                    user_input = re.findall(r'(\d+\.?\d*)',user_input)[0]
+                query_str = query_str+"&assumption="+str(variable_list_subjective[variable_number])+str(user_input)
+        return query_str
+
+    def add_subjective_variables_for_physical_exercises_calc(self,query_str,variable_list_subjective):
+        names_of_variables_needed = ['speed(in kmph)','distance(in kms)','inclination(enter 0 if flat surface)','age','height(in cms)','weight(kg)','resting heart rate']
+        for variable_number in range(len(variable_list_subjective)):
+            user_input = raw_input('enter your '+str(names_of_variables_needed[variable_number])+' : ')
+            if re.search(r'\d+\.?\d*',user_input):
+                if names_of_variables_needed[variable_number] == 'speed(in kmph)':
+                   user_input = self.grab_value_from_user_input_and_add_unit(user_input,'kmph')
+                elif names_of_variables_needed[variable_number] == 'distance(in kms)':
+                   user_input = self.grab_value_from_user_input_and_add_unit(user_input,'km')
+                elif names_of_variables_needed[variable_number] == 'inclination(enter 0 if flat surface)':
+                    user_input = self.grab_value_from_user_input_and_add_unit(user_input,'%')
+                else:
+                    user_input = re.findall(r'(\d+\.?\d*)',user_input)[0]
+                query_str = query_str+"&assumption="+str(variable_list_subjective[variable_number])+str(user_input)
+        return query_str
+    
     def add_subjective_formula_variables_to_query(self,variable_list_subjective):
         query_str = self.query_str
         names_of_variables_needed = []
@@ -157,10 +195,19 @@ class prepare_and_perform_query_with_assumptions:
         if self.type_of_calculator == 2:
             names_of_variables_needed = ['age', 'LDL cholesterol', 'HDL cholesterol', 'systolic blood pressure','diastolic blood pressure']
         if self.type_of_calculator == 3:
-            names_of_variables_needed = ['speed(in kmph)','distance(in kms)','inclination(enter 0 if flat surface)','age','height(in cms)','weight(kg)','resting heart rate']
+            query_str = self.add_subjective_variables_for_physical_exercises_calc(query_str,variable_list_subjective)
+            return query_str
+        if self.type_of_calculator == 4:
+            names_of_variables_needed = ['weight(in kg)','height(in cms)']
+        if self.type_of_calculator == 5:
+            query_str = self.add_subjective_variables_for_blood_alcohol_content_calc(query_str,variable_list_subjective)
+            return query_str
+
         for variable_number in range(len(variable_list_subjective)):
             user_input = raw_input('enter your '+str(names_of_variables_needed[variable_number])+' : ')
-            query_str = query_str+"&assumption="+str(variable_list_subjective[variable_number])+str(user_input)
+            if re.search(r'\d+\.?\d*',user_input):
+                user_input = re.findall(r'(\d+\.?\d*)',user_input)[0]
+                query_str = query_str+"&assumption="+str(variable_list_subjective[variable_number])+str(user_input)
         return query_str
          
     def add_objective_formula_variables_to_query(self,variable_list_objective,query_str):
@@ -237,10 +284,9 @@ class extract_medical_test_data:
                             print('required pods working')
                             reference_distribution_table_dict = self.extract_data_out_of_pod_reference_distribution(pod_item)
                             print(reference_distribution_table_dict)
-        if medical_information_obtained is True:
-            return reference_distribution_table_dict
-        if medical_information_obtained is False:
-            return f
+                            return reference_distribution_table_dict
+
+        return medical_information_obtained
 
 #--------------------------------------------------------------------------------------------------------------------------------- 
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -251,15 +297,16 @@ class extract_weight_loss_data:
         self.pods_list = pods_list
     
     def extract_data_out_of_pod_regimen_duration(self,pod_item):
-        data = ''
+        found = False
         for inner_pod_list in pod_item:
             if type(inner_pod_list) is list and inner_pod_list[0] == 'subpod':
                 for subpod_item in inner_pod_list:
                     if type(subpod_item) is list and subpod_item[0] == 'plaintext':
                         data = str(subpod_item[1])
-        return data                
-
+                        return data                
+        return found,found
     def extract_data_out_of_pod_maintain_bodyweight(self,pod_item):
+        found = False
         maintain_bodyweight_table_dict = {}
         for inner_pod_list in pod_item:
             if type(inner_pod_list) is list and inner_pod_list[0] == 'subpod':
@@ -269,21 +316,24 @@ class extract_weight_loss_data:
                         for row_index in range(1,len(maintain_bodyweight_table_rows)):
                             row_data_list = str(maintain_bodyweight_table_rows[row_index]).split(' | ')
                             if len(row_data_list) == 3:
+                                print('here')
                                 maintain_bodyweight_table_dict.update({''+str(row_data_list[0])+'':{'weight':''+str(row_data_list[1])+'','calorie intake':''+str(row_data_list[2])+''}})
-        return maintain_bodyweight_table_dict   
-
+                                return maintain_bodyweight_table_dict   
+        return found,found
 
     def extract_data_from_required_pods(self):
+        found = False
+        found_2 = False
         for pod_item in self.pods_list:
             if type(pod_item) is list:
                 for inner_pod_list in pod_item:
                     if inner_pod_list[0] == 'title':
-                        if 'Weight loss regimen duration' in inner_pod_list[1]:
+                        if 'Weight loss regimen duration' in inner_pod_list[1] or 'Nominal required regimen duration' in inner_pod_list[1]:
                             regimen_duration_info = self.extract_data_out_of_pod_regimen_duration(pod_item)
                         if 'Caloric intake to maintain body weight' in inner_pod_list[1]:
                             maintain_bodyweight_table_dict = self.extract_data_out_of_pod_maintain_bodyweight(pod_item)
-        return regimen_duration_info, maintain_bodyweight_table_dict 
-
+                            return regimen_duration_info, maintain_bodyweight_table_dict 
+        return found,found_2
 #-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -293,22 +343,25 @@ class extract_heart_risk_data:
         self.pods_list = pods_list
 
     def extract_data_out_of_pod_10year_risk(self,pod_item):
+        found = False
         for inner_pod_list in pod_item:
             if type(inner_pod_list) is list and inner_pod_list[0] == 'subpod':
                 for subpod_item in inner_pod_list:
                     if type(subpod_item) is list and subpod_item[0] == 'plaintext':
                         data = str(subpod_item[1].split('\n')[0])
-        return data                
-
+                        return data                
+        return found
 
     def extract_data_from_required_pods(self):
+        found = False
         for pod_item in self.pods_list:
             if type(pod_item) is list:
                 for inner_pod_list in pod_item:
                     if inner_pod_list[0] == 'title':
                         if '10-year risk of developing coronary heart disease' in inner_pod_list[1]:
                             data = self.extract_data_out_of_pod_10year_risk(pod_item)
-        return data
+                            return data
+        return found
 
 
 #-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -319,7 +372,7 @@ class extract_physical_excercises_data:
         self.pods_list = pods_list
 
     def extract_data_out_of_pod_metabolic_activities(self,pod_item):
-        
+        found = False
         metabolic_activities_table_dict = {}
         for inner_pod_list in pod_item:
             if type(inner_pod_list) is list and inner_pod_list[0] == 'subpod':
@@ -330,21 +383,96 @@ class extract_physical_excercises_data:
                             columns = row.split('|')
                             if len(columns) >= 2 :
                                 metabolic_activities_table_dict.update({''+(columns[0].encode('utf-8')).strip()+'':''+(columns[1].encode('utf-8')).strip()+''})
-        return metabolic_activities_table_dict
-    
+                                return metabolic_activities_table_dict
+        return found
 
     def extract_data_from_required_pods(self):
-        
+        found = False       
         for pod_item in self.pods_list:
             if type(pod_item) is list:
                 for inner_pod_list in pod_item:
                     if inner_pod_list[0] == 'title':
                         if 'Metabolic properties' in inner_pod_list[1]:
                             metabolic_activities_table_dict = self.extract_data_out_of_pod_metabolic_activities(pod_item)
-        return metabolic_activities_table_dict
+                            return metabolic_activities_table_dict
+        return found
+
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+class extract_bmi_data:
+    def __init__(self,pods_list):
+        self.pods_list = pods_list
+
+    def extract_data_out_of_pod_bmi_result(self,pod_item):
+        found = False
+        for inner_pod_list in pod_item:
+            if type(inner_pod_list) is list and inner_pod_list[0] == 'subpod':
+                for subpod_item in inner_pod_list:
+                    if type(subpod_item) is list and subpod_item[0] == 'plaintext':
+                        bmi_value = ((subpod_item[1].split('|'))[1]).strip()
+                        return bmi_value
+        return found
+
+    def classify_bmi_value_into_categories(self,bmi_value):
+        value = float(bmi_value)
+        bmi_information_dict = {'value':value,'normal_range':'18.5 to 25',"classification":''}
+        if value < 18.5:
+            bmi_information_dict['classification'] = 'underweight'
+        elif value <= 25:
+            bmi_information_dict['classification'] = 'normal'
+        elif value <= 30:
+            bmi_information_dict['classification'] = 'overweight'
+        else:
+            bmi_information_dict['classification'] = 'obese'
+        return bmi_information_dict
+    
+    def extract_data_from_required_pods(self):
+        found = False
+        for pod_item in self.pods_list:
+            if type(pod_item) is list:
+                for inner_pod_list in pod_item:
+                    if inner_pod_list[0] == 'title':
+                        if 'Result' in inner_pod_list[1]:
+                            bmi_value = self.extract_data_out_of_pod_bmi_result(pod_item)
+                            bmi_information_dict = self.classify_bmi_value_into_categories(bmi_value)
+                            return bmi_information_dict
+        return found
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
+class extract_blood_alcohol_content_data:
+    def __init__(self,pods_list):
+        self.pods_list = pods_list
 
+    def extract_data_out_of_pod_estimated_result(self,pod_item):
+        found = False
+        estimated_result_table_dict = {'leagal diriving limit(India)' : '.03%'}
+        for inner_pod_list in pod_item:
+            if type(inner_pod_list) is list and inner_pod_list[0] == 'subpod':
+                for subpod_item in inner_pod_list:
+                    if type(subpod_item) is list and subpod_item[0] == 'plaintext':
+                        estimated_result_table_rows =  subpod_item[1].split('\n')
+                        for row in estimated_result_table_rows:
+                            columns = row.split('|')
+                            if len(columns) >= 2 :
+                                if (columns[0].encode('utf-8')).strip() == 'blood alcohol percentage' :
+                                    estimated_result_table_dict.update({''+(columns[0].encode('utf-8')).strip()+'':''+(columns[1].encode('utf-8')).strip()+''})
+                                if 'total time to' in (columns[0].encode('utf-8')).strip():
+                                    estimated_result_table_dict.update({''+(columns[0].encode('utf-8')).strip()+'':''+(columns[1].encode('utf-8')).strip()+''})
+                                    return estimated_result_table_dict
+        return found
+    def extract_data_from_required_pods(self):
+        found = False
+        for pod_item in self.pods_list:
+            if type(pod_item) is list:
+                for inner_pod_list in pod_item:
+                    if inner_pod_list[0] == 'title':
+                        if 'Estimated result' in inner_pod_list[1]:
+                            estimated_result_table_dict = self.extract_data_out_of_pod_estimated_result(pod_item)
+                            return estimated_result_table_dict
+        return found
 
 #-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -374,6 +502,15 @@ class supervise_extraction_of_data():
                 extracting_physical_excercises_data = extract_physical_excercises_data(pods_list)
                 metabolic_activities_table_dict = extracting_physical_excercises_data.extract_data_from_required_pods()
                 return metabolic_activities_table_dict
+            if self.type_of_calculator == 4:
+                extracting_physical_excercises_data = extract_bmi_data(pods_list)
+                bmi_information_dict = extracting_physical_excercises_data.extract_data_from_required_pods()
+                return bmi_information_dict
+            if self.type_of_calculator == 5:
+                extracting_physical_excercises_data = extract_blood_alcohol_content_data(pods_list)
+                estimated_result_table_dict= extracting_physical_excercises_data.extract_data_from_required_pods()
+                return estimated_result_table_dict
+
         if self.medical_test_wolram_query_flag is True:
             extracting_medical_test_data = extract_medical_test_data(pods_list)
             print('supervise working')
@@ -393,6 +530,12 @@ class calculate_percentile:
     def take_user_input_and_find_nearest_match(self):
         input_test_name = raw_input('Enter test name: ')
         input_value = raw_input('Enter your value: ')
+        gender_identifier = raw_input('Enter 1 if male 2 if female: ')
+        age = raw_input('Enter your age: ')
+        if str(gender_identifier) == 1:
+            gender = 'M'
+        else:
+            gender = 'F'
         highest_similarity = 0
         for test_name in self.total_tests_available:
             similarity = difflib.SequenceMatcher(None,test_name.lower(),input_test_name.lower()).ratio()
@@ -400,23 +543,13 @@ class calculate_percentile:
                 highest_similarity = similarity
                 name_to_use_for_calculation = test_name
 
-        return highest_similarity,name_to_use_for_calculation,input_value,input_test_name
+        return highest_similarity,name_to_use_for_calculation,input_value,input_test_name,gender,age
 
-
-
-    def connect_to_database_to_form_result_dictionary (self,name_to_use_for_calculation,input_value):
-        db = MySQLdb.connect(host = 'localhost',
-            user = 'root',
-            password = 'jubi',
-            db = 'parsed')
-
-        query = 'select test.value from test where test.name like '+ '\"%'+name_to_use_for_calculation+'%\"'+''
-        
-        all_values_of_given_test = pd.read_sql(query, db)
-        length = len(all_values_of_given_test)
-        if length > 3000:
+    def calculate_percentile(self,frame,input_value):
+        length = len(frame)
+        if length >= 0:
             count = 0
-            for value in all_values_of_given_test['value'].values:
+            for value in frame['value'].values:
                 try:
                     if type(value) is float or type(value) is str or type(value) is int:
                         if float(value) < float(input_value):
@@ -431,27 +564,71 @@ class calculate_percentile:
         percentage_below_you = float(count)/float(length) *100
         percentage_above_you = 100 - percentage_below_you
 
-        data_dictionary = {'percentage of people below your value':percentage_below_you,'percentage of people above your value':percentage_above_you}
-
+        data_dictionary ={'percentage of people below your value':percentage_below_you,'percentage of people above your value':percentage_above_you}
         return data_dictionary
 
-    def validate_and_perform_operation(self,count,flag_for_wolfram):
+    def percentile_on_basis_of_age(self,all_values_of_given_test,age,input_value):
+        all_values_of_given_test_dropna = all_values_of_given_test.dropna()
+        all_values_of_given_test_dropna = all_values_of_given_test_dropna[all_values_of_given_test_dropna.age != '']
+        all_values_of_given_test_dropna['age'] = all_values_of_given_test_dropna['age'].apply(lambda x: int(x))
+        age_band_list = ['20-29','30-39','40-49','50-59','60-69','70-79','80-89','90-99']
+        for age_band in age_band_list:
+            if age[0] == age_band[0]:
+                age_band_frame = all_values_of_given_test_dropna[np.logical_and(all_values_of_given_test_dropna.age >= int(age_band.split('-')[0]),all_values_of_given_test_dropna.age <= int(age_band.split('-')[1]))]
+                break
+        data_dictionary = self.calculate_percentile(age_band_frame,input_value)
+        return data_dictionary
+
+
+    def percentile_on_basis_of_gender(self,all_values_of_given_test,gender,input_value):
+        if gender == 'M':
+            values_for_male_gender = all_values_of_given_test[all_values_of_given_test.gender == 'M']
+            data_dictionary = self.calculate_percentile(values_for_male_gender,input_value)
+        if gender == 'F':
+            values_for_female_gender = all_values_of_given_test[all_values_of_given_test.gender == 'F']
+            data_dictionary = self.calculate_percentile(values_for_female_gender,input_value)
+        return data_dictionary
+    
+    def normal_percentile(self,all_values_of_given_test,input_value):
+        data_dictionary = self.calculate_percentile(all_values_of_given_test,input_value)
+        return data_dictionary
+
+    def connect_to_database_to_form_result_dictionary (self,name_to_use_for_calculation,input_value,gender,age):
+        
+        db = MySQLdb.connect(host = 'localhost',
+            user = 'root',
+            password = 'jubi',
+            db = 'parsed')
+
+        query = 'select report.age,report.gender,test.value,test.name from report join profile on report.report_id=profile.report_report_id join test on profile.profile_id=test.profile_profile_id where test.name like '+ '\"%'+name_to_use_for_calculation+'%\"'+''
+        
+        all_values_of_given_test = pd.read_sql(query, db)
+        data_dictionary.update({'overall':self.normal_percentile(all_values_of_given_test,input_value)})
+        data_dictionary.update({'within your gender':self.percentile_on_basis_of_gender(all_values_of_given_test,gender,input_value)})
+        data_dictionary.update({'within you age group':self.percentile_on_basis_of_age(all_values_of_given_test,age,input_value)})
+        return data_dictionary
+
+    def validate_test_name_and_perform_operation(self,count,flag_for_wolfram):
         count = count + 1 
-        highest_similarity,name_to_use_for_calculation,input_value,input_test_name= self.take_user_input_and_find_nearest_match()
+        highest_similarity,name_to_use_for_calculation,input_value,input_test_name,gender,age= self.take_user_input_and_find_nearest_match()
         validate_test_name = raw_input("Is "+name_to_use_for_calculation+" the test you are looking for?Enter Yes or No: ")
-        if validate_test_name.lower() == 'yes':
-            data_dictionary = self.connect_to_database_to_form_result_dictionary (name_to_use_for_calculation,input_value)
+        if 'yes' in  validate_test_name.lower():
+            data_dictionary = self.connect_to_database_to_form_result_dictionary (name_to_use_for_calculation,input_value,gender,age)
             return data_dictionary,input_value,input_test_name
         
-        else:
-            if highest_similarity > .7 and count < 3:
+        elif 'no' in validate_test_name.lower():
+            if highest_similarity > .6 and count < 3:
                 print('Check the spelling and try again')
-                self.validate_and_perform_operation(count,flag_for_wolfram)
+                self.validate_test_name_and_perform_operation(count,flag_for_wolfram)
             else:
                 print('trying to find your answer on internet')
                 flag_for_wolfram = True
                 return flag_for_wolfram,input_value,input_test_name
-
+        else:
+            print("Sorry,didn't get that. Please Try Again")
+            self.validate_test_name_and_perform_operation(count,flag_for_wolfram)
+        return True,input_value,input_test_name
+        
 #----------------------------------------------------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------------------------------------------------------
 #----------------------------------------------------------------------------------------------------------------------------------------------
@@ -477,55 +654,65 @@ def check_validity_of_test_name_for_wolfram_query_try(input_test_name):
 
 
 
-def wolfram_query_for_medical_test(medical_test_wolram_query_flag,input_test_name,count_of_re_querying,server,appid,input_string,type_of_calculator): 
-    count_of_re_querying = count_of_re_querying + 1
-    print('c : '+str(count_of_re_querying))
-    
+def think_its_name(server,appid,input_string,type_of_calculator, medical_test_wolram_query_flag):
     get_assumptions = get_assumptions_and_formula_variables_from_basic_query(server,appid,input_string,type_of_calculator)
     assumption_list = get_assumptions.perform_basic_query_and_extract_assumptions()
- 
     prepare_and_perform_query = prepare_and_perform_query_with_assumptions(input_string,assumption_list,appid,server,medical_test_wolram_query_flag,type_of_calculator)
     json_result = prepare_and_perform_query.perform_query()
+    return json_result
+
+
+def wolfram_query_for_medical_test(input_test_name,count_of_re_querying,server,appid,input_string): 
+    count_of_re_querying = count_of_re_querying + 1   
+    
+    medical_test_wolram_query_flag = True
+    type_of_calculator = 0
+    json_result = think_its_name(server,appid,input_string,type_of_calculator, medical_test_wolram_query_flag)
 
     supervise_data_extraction= supervise_extraction_of_data(json_result,medical_test_wolram_query_flag,type_of_calculator)
+    reference_distribution_table_dict = supervise_data_extraction.retrieving_all_pods_from_data()
     
-    if medical_test_wolram_query_flag is True:
-        reference_distribution_table_dict = supervise_data_extraction.retrieving_all_pods_from_data()
-        print('dict : '+str(reference_distribution_table_dict))
-        if type(reference_distribution_table_dict) is bool and count_of_re_querying < 5:
-            if count_of_re_querying == 1:
-                re_query_flag = check_validity_of_test_name_for_wolfram_query_try(input_test_name)
-            if count_of_re_querying > 1:
-                re_query_flag = True
-            if re_query_flag is False:
-                print('Sorry, Name Not Found')
-            else: 
-                wolfram_query_for_medical_test(medical_test_wolram_query_flag,input_test_name,count_of_re_querying,server,appid,input_string,type_of_calculator)
+    re_query_flag = True
+    if type(reference_distribution_table_dict) is bool and count_of_re_querying < 5:
+        if count_of_re_querying == 1:
+            re_query_flag = check_validity_of_test_name_for_wolfram_query_try(input_test_name)
+
+        if re_query_flag is False:
+            print('Sorry, Name Not Found')
+        else: 
+            wolfram_query_for_medical_test(input_test_name,count_of_re_querying,server,appid,input_string)
         
-    else:
+def wolfram_query_for_calculators(count_of_re_querying,server,appid,input_string,type_of_calculator):
+    medical_test_wolram_query_flag = False
+    count_of_re_querying = count_of_re_querying + 1
+
+    json_result = think_its_name(server,appid,input_string,type_of_calculator, medical_test_wolram_query_flag)
+    supervise_data_extraction= supervise_extraction_of_data(json_result,medical_test_wolram_query_flag,type_of_calculator)
+    if count_of_re_querying < 3:
         if int(type_of_calculator) == 1:
             regimen_duration_info, maintain_bodyweight_table_dict = supervise_data_extraction.retrieving_all_pods_from_data()
-            print('\n')
-            print('\n')
-            print(regimen_duration_info)
-            print('\n')
-            print('\n')
-            print(maintain_bodyweight_table_dict)
+            if type(regimen_duration_info) is bool or type(maintain_bodyweight_table_dic) is bool:
+                wolfram_query_for_medical_calculators(count_of_re_querying,server,appid,input_string,type_of_calculator)
+            if type(regimen_duration_info) is str or type(maintain_bodyweight_table_dic) is dict:
+                print(regimen_duration_info)
+                print(maintain_bodyweight_table_dict)
 
         if int(type_of_calculator) == 2:
             info_about_risk_probability = supervise_data_extraction.retrieving_all_pods_from_data()
-            print('\n')
-            print('\n')
-            print(info_about_risk_probability)
+            if type(info_about_risk_probability) is bool:
+                wolfram_query_for_calculators(count_of_re_querying,server,appid,input_string,type_of_calculator)
+            
+            if type(info_about_risk_probability) is str:
+                print(info_about_risk_probability)
 
-        if int(type_of_calculator) == 3:
-            metabolic_activities_table_dict =  supervise_data_extraction.retrieving_all_pods_from_data()
-            print('\n')
-            print('\n')
-            print(metabolic_activities_table_dict)
-
-
-
+        if int(type_of_calculator) == 3 or int(type_of_calculator) == 4 or int(type_of_calculator) == 5:
+            result_dict = supervise_data_extraction.retrieving_all_pods_from_data()
+            if type(result_dict) is bool:
+                wolfram_query_for_calculators(count_of_re_querying,server,appid,input_string,type_of_calculator)
+            if type(result_dict) is dict:
+                print(result_dict)
+    else:
+        print('Sorry')
 
 
 
@@ -535,7 +722,7 @@ def for_medical_test_operations():
     calculate_percentile_for_test = calculate_percentile(total_tests_available)
     count_of_spelling_mistake_try = 0
     flag_for_calling_wolfram = False
-    result_of_percentile_class,input_value,input_test_name= calculate_percentile_for_test.validate_and_perform_operation(count_of_spelling_mistake_try,flag_for_calling_wolfram)
+    result_of_percentile_class,input_value,input_test_name= calculate_percentile_for_test.validate_test_name_and_perform_operation(count_of_spelling_mistake_try,flag_for_calling_wolfram)
 
 
     server = 'http://api.wolframalpha.com/v2/query.jsp'
@@ -546,11 +733,11 @@ def for_medical_test_operations():
         percentile_inforamtion = result_of_percentile_class
         print(percentile_inforamtion)
     if type(result_of_percentile_class) is bool:
-        flag_for_calling_wolfram = result_of_percentile_class
+        flag_for_calling_wolfram = result_of_percentile_class 
         if flag_for_calling_wolfram is True:
             count_of_re_querying = 0
             type_of_calculator = 0
-            wolfram_query_for_medical_test(medical_test_wolram_query_flag,input_test_name,count_of_re_querying,server,appid,input_string,type_of_calculator)
+            wolfram_query_for_medical_test(input_test_name,count_of_re_querying,server,appid,input_string)
 
 
 
@@ -561,24 +748,24 @@ def for_calculator_operations():
     server = 'http://api.wolframalpha.com/v2/query.jsp'
     appid = 'EEKVX9-HGPX4GPUWY'
     input_string = ''
-    type_of_calculator = raw_input('enter 1 to use weight loss, 2 to use heart disease risk, 3 to use physical exercise calculator: ')
+    type_of_calculator = raw_input('enter 1 to use weight loss, 2 to use heart disease risk, 3 to use physical exercise calculator, 4 to calculate BMI, 5 to measure your blood alcohol content: ')
     if int(type_of_calculator) == 1:
         input_string = 'weight loss'
-
     if int(type_of_calculator) == 2:
         input_string = 'heart disease risk'
-
     if  int(type_of_calculator) == 3:
         input_string = 'running'
-    
-    wolfram_query_for_medical_test(medical_test_wolram_query_flag,input_test_name,count_of_re_querying,server,appid,input_string,type_of_calculator)
+    if int(type_of_calculator) == 4:
+        input_string = 'BMI'
+    if int(type_of_calculator) == 5:
+        input_string = 'Am I too drunk to drive?'
+    wolfram_query_for_calculators(count_of_re_querying,server,appid,input_string,type_of_calculator)
 
 
 
 
 
 what_to_do = raw_input('enter 1 to use calculators and 2 to find about medical test value: ')
-
 if int(what_to_do) == 1:
     for_calculator_operations()
 if int(what_to_do) == 2:

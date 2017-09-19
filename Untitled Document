@@ -1,0 +1,6 @@
+GOOGLE PLACES---Finding doctors, dieticians, physiotherapists, dentists and yoga trainers.
+
+
+1. Search within a predefined threshold of distance from location specified by the user.
+2. If the no. of results with rating is less than the required number keep on increasing the distance till that number is obtained.
+3. If user wants to see more options, then search again with increased distance.
